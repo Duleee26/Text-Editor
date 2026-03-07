@@ -11,7 +11,8 @@
 
 
 ;********************** Data for Text Editor Settings **********************************
-MAX_PATH_LENGTH EQU   		260						; Max length of working Directory string
+MAX_FILE_NAME_LENGTH EQU	260						; This is the longest name (path + fileName.txt) that is allowed in windows operating system
+MAX_PATH_LENGTH EQU   		200						; Max length of working Directory string
 MAX_COLOR_LENGTH EQU		12						; Longest string for color name that we can use is 12
 CONFIGURATION_FIELDS EQU    3						; Number of configurations that can be done (Numbers of elements of structure)
 	

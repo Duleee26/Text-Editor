@@ -48,7 +48,7 @@ ReadColorString PROTO, colorName: PTR BYTE
 		cmp eax, INVALID_HANDLE_VALUE
 		jne read_file
 
-		mWrite <"Error: Failed to open Text Editor (Couldn't find config file)",0Dh,0Ah>
+		mWrite <"Error: Failed to open Text Editor (Couldn't find config file",0Dh,0Ah>
 		mov eax, INVALID_HANDLE_VALUE
 		ret
 
@@ -64,6 +64,7 @@ ReadColorString PROTO, colorName: PTR BYTE
 		
 		; Parse file to lines (every Line is one element of struct configurationParameters_t)
 		BufferFilled:
+		
 		mov bytesRead, eax 					; If everything went correctly eax register will tell how much bytes where read
 		mov fileBuffer[eax], 0				; Add null to end of buffer last element will have addres bytesRead + OFFSET fileBuffer
 		
@@ -96,6 +97,12 @@ ReadColorString PROTO, colorName: PTR BYTE
 							ADDR settingsInfo.backroundColor
 					
 				.ELSEIF ecx == 2
+				; Check If the length of data_path not exceeds MAX_LENGTH
+					mov  edx,OFFSET temp1
+					call StrLength
+					cmp eax, MAX_PATH_LENGTH
+					ja  PathTooLong
+					
 					INVOKE Str_copy,
 							ADDR temp1,
 							ADDR settingsInfo.work_dir
@@ -117,12 +124,21 @@ ReadColorString PROTO, colorName: PTR BYTE
 		sub esi,2			; We don't want to include '0' char as read byte
 		cmp esi, bytesRead
 		jnz To_many_Arguments
+		mov  eax,fileHandle
+		call CloseFile
 		ret
 		To_many_Arguments:
 		mWrite <"Error: Failed to open Text Editor: To many arguments in config.txt",0Dh,0Ah>
 		mov eax, INVALID_HANDLE_VALUE
+		mov  eax,fileHandle
+		call CloseFile
 		ret
-		
+		PathTooLong:
+		mWrite <"Error: Path of Working Directory in config.txt is too long!",0Dh,0Ah>
+		mov eax, INVALID_HANDLE_VALUE
+		mov  eax,fileHandle
+		call CloseFile
+		ret
 	InitializeSettings ENDP
 
 	AplySettings PROC USES EAX EBX
