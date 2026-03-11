@@ -9,10 +9,10 @@
 ;************************************************************
 
 	;// Definisanje velicine prozora 
-	xmin = 0	;// leva ivica
-	xmax = 79	;// desna ivica
-	ymin = 0	;// gornja ivica
-	ymax = 24	;// donja ivica
+	xmin EQU 0	;// leva ivica
+	xmax EQU 79	;// desna ivica
+	ymin EQU 0	;// gornja ivica
+	ymax EQU 24	;// donja ivica
 
 ; Keyboard ASCII values for arrow keys & ESC
 	LEFT_KEY = 4Bh        

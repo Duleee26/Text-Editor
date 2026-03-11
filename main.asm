@@ -21,7 +21,7 @@ updateIndexFile		proto
 removeFromIndex		proto
 displayIndexFile	proto
 foundInIndex		proto
-
+SetConsoleScreenBufferSize PROTO :DWORD, :COORD
 	
 .data
 ;******************* Extern Variables********************
@@ -62,7 +62,10 @@ EXTRN settingsInfo:configurationParameters_t
 	buffer          BYTE 512 DUP(0)
 	fileWasEmpty DWORD 1															; for checking if index file was empty
 	foundFlag BYTE 0																; for finding file name in index.txt
-	windowRect SMALL_RECT <xmin, ymin, xmax, ymax>      ;// Velicina prozora 
+	
+    ; Terminal widnows size
+    windowRect SMALL_RECT <xmin,ymin,xmax,ymax>   ; xmin=0, ymin=0, xmax=79, ymax=24
+    bufferSize COORD <xmax+1,ymax+1>            ; širina=80, visina=25
 .data?
 	; Variables that are needed to handle the data entered in the console, ie. interaction with the user (With this we just want to make cursor invisible -_- )
 	stdOutHandle handle ?
@@ -84,12 +87,11 @@ EXTRN settingsInfo:configurationParameters_t
 	main proc
 	
 	invoke SetConsoleTitle, addr winTitle	
-	invoke GetStdHandle, STD_OUTPUT_HANDLE							 ; Sets a handle to print data 
-	mov  stdOutHandle, eax
-	;invoke SetConsoleWindowInfo, stdOutHandle, TRUE, addr windowRect ;// Dimenzije prozora
+	
+	invoke GetStdHandle, STD_OUTPUT_HANDLE							 ;// Postavlja handle za ispis podataka
+    mov  stdOutHandle, eax							 ; Sets a handle to print data 
 
 	
-	; Set up Text Editor based on config.txt (Backround & Letter Color and Working Directory)
 	INVOKE InitializeSettings  , addr configFile
 	cmp eax, INVALID_HANDLE_VALUE
 	jz ExitProgram

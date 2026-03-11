@@ -24,8 +24,11 @@ SetCursor MACRO coordVar:REQ
 		call Gotoxy
 ENDM
 
+WriteConsole PROTO :DWORD, :PTR BYTE, :DWORD, :PTR DWORD, :DWORD
+
 
 ButtonPollingTime EQU 10					; 50 ms 
+EditorLoop proto, fileName:	PTR BYTE
 .data
 	; Main variables for text editor
 	textBuffer BYTE TEXT_BUFFER_SIZE DUP(0)  
@@ -37,6 +40,7 @@ ButtonPollingTime EQU 10					; 50 ms
 	MaxXYCord COORD <0,0>
 	saveMsg		BYTE "Do you want to save file?(Y-Yes, N-No): " , 0
 	crlfstrg BYTE 0Dh,0Ah,0
+	numberCharsWritte DWORD 0
 
 .code 
 
@@ -63,7 +67,7 @@ ButtonPollingTime EQU 10					; 50 ms
 
 		; Initialize terminal screen
 		mov edx, OFFSET textBuffer
-		call WriteString
+		INVOKE WriteConsole, stdOutHandle, ADDR textBuffer, textLength, ADDR numberCharsWritte, NULL
 		;Get cursor positon
 		INVOKE GetConsoleScreenBufferInfo, stdOutHandle, ADDR consoleInfo
 
@@ -76,12 +80,16 @@ ButtonPollingTime EQU 10					; 50 ms
 		mov cursorCoord.Y, ax
 		add ax,2
 		mov maxXYCord.Y,ax
-		; Open .txt file to write
-		invoke CreateFile,  filename, GENERIC_WRITE, FILE_SHARE_READ, 0, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0
-		mov fileHandle, eax
 
-		mov fileHandle, eax
-		call EditorLoop
+		;Calculate cursor Max x coordinate
+		
+		invoke GetConsoleScreenBufferInfo, stdOutHandle, ADDR consoleInfo
+
+		mov ax, consoleInfo.srWindow.Right
+		sub ax, consoleInfo.srWindow.Left
+		mov MaxXYCord.X,ax
+
+		INVOKE EditorLoop, fileName
 		; close output file
 		mov eax, fileHandle
 		call CloseFile
@@ -107,7 +115,8 @@ ButtonPollingTime EQU 10					; 50 ms
 ; Registers changed:  eax
 ;**********************************************************************************
 	
-	EditorLoop PROC USES eax
+	EditorLoop PROC USES eax,
+		fileName:	PTR BYTE				; Pointer to full file Name (path + fileName.txt)
 mainLoop:
     mov  eax, ButtonPollingTime
     call Delay
@@ -180,8 +189,9 @@ saveFile:
 	call RenderScreen
 	jmp mainLoop
 	; Save File
-	writeInFile:
-	mov  eax,fileHandle
+	writeInFile:; Open .txt file to write
+	invoke CreateFile,  filename, GENERIC_WRITE, FILE_SHARE_READ, 0, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0
+	mov fileHandle, eax
     mov  edx,OFFSET textBuffer
     mov  ecx, textLength
     call WriteToFile
@@ -310,7 +320,14 @@ shift_single:
     dec textLength
 
     ; Update terminal cursor
-    dec cursorCoord.X
+	mov ax, cursorCoord.X
+	.IF(ax == 0)
+		mov ax, maxXYCord.X
+		mov cursorCoord.X,ax
+		dec cursorCoord.Y
+	.ELSE
+		dec cursorCoord.X
+	.ENDIF
     SetCursor cursorCoord
 
 endDelete:
@@ -363,7 +380,7 @@ DeleteChar ENDP
 		inc textLength
 		inc cursorPos
 		mov ax, cursorCoord.X
-		.IF(dl == 0Ah)
+		.IF(dl == 0Ah || ax == maxXYCord.X)
 			mov cursorCoord.X, 0
 			mov ax, cursorCoord.Y
 			inc ax
@@ -420,12 +437,17 @@ DeleteChar ENDP
 			mov cursorPos, ecx
 		.ENDIF
 	.ELSE
+		
 		inc cursorPos
 		; Increment X coordinat (vertical coordinate)
 		mov ax, cursorCoord.X
-		inc ax
-		mov cursorCoord.X, ax
-
+		.IF(ax == maxXYCord.X)
+			mov cursorCoord.X, 0
+			inc cursorCoord.Y
+		.ELSE
+			inc ax
+			mov cursorCoord.X, ax
+		.ENDIF
 	.ENDIF
 	done:
 	SetCursor cursorCoord
@@ -448,25 +470,38 @@ DeleteChar ENDP
 		je done
 		mov ecx, cursorPos
 
-		
+		mov ebx, ecx			; temp for cheking part
 		mov ax, cursorCoord.X
 		.IF (ax == 0) 
-			; Decrement Y coordinat (vertical coordinate)
-			mov bx, cursorCoord.Y
-			dec bx
-			mov cursorCoord.Y, bx 
-			; Here the cursor should be pointing to last char in previous row
+			;Check if the line break caused this or that text in previous line is to long to be shown in one terminal line
+			dec ebx
+			.IF(BYTE PTR textBuffer[ebx] == 0Dh || BYTE PTR textBuffer[ebx] == 0Ah )
+
+				; Decrement Y coordinat (vertical coordinate)
+				mov bx, cursorCoord.Y
+				dec bx
+				mov cursorCoord.Y, bx 
+				; Here the cursor should be pointing to last char in previous row
 			
-			;  position cursorPos at the 0Dh char
+				;  position cursorPos at the 0Dh char
 			
-			dec cursorPos
-			dec cursorPos
-			;		Pointer				- Pointer is used in lineLength
-			; H E L L | O | 0Dh 0Ah
-			;       cursorPos
-			;
-			call lineLength				; Calculate previous line length (without carriage return line feed chars) and that will be new X coordinate
-			mov cursorCoord.X, ax
+				dec cursorPos
+				dec cursorPos
+				;		Pointer				- Pointer is used in lineLength
+				; H E L L | O | 0Dh 0Ah
+				;       cursorPos
+				;
+				call lineLength				; Calculate previous line length (without carriage return line feed chars) and that will be new X coordinate
+				mov cursorCoord.X, ax
+			.ELSE
+				; Decrement Y coordinat (vertical coordinate)
+				mov bx, cursorCoord.Y
+				dec bx
+				mov cursorCoord.Y, bx 
+				mov bx, MaxXYCord.X
+				mov cursorCoord.X, bx
+				dec cursorPos
+			.ENDIF
 		.ELSE
 			dec cursorPos
 			; Decrement X coordinat (horizontal coordinate)
