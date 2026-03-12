@@ -42,6 +42,7 @@ EditorLoop proto, fileName:	PTR BYTE
 	crlfstrg BYTE 0Dh,0Ah,0
 	numberCharsWritte DWORD 0
 
+	fileOpenFlag	BYTE 0
 .code 
 
 	EditTxtFile proc USES edx ecx eax ebx,
@@ -91,8 +92,6 @@ EditorLoop proto, fileName:	PTR BYTE
 
 		INVOKE EditorLoop, fileName
 		; close output file
-		mov eax, fileHandle
-		call CloseFile
 		ret
 		show_error_message:
 		mWrite <"Error: Failed edit Initialization: File exception thrown!",0Dh,0Ah>
@@ -195,11 +194,17 @@ saveFile:
     mov  edx,OFFSET textBuffer
     mov  ecx, textLength
     call WriteToFile
-	
+	mov fileOpenFlag, 1
 	; Refresh screen
 	call RenderScreen
 	jmp mainLoop
 exitEditor:
+	mov al, fileOpenFlag
+	.IF(al == 1)
+		mov eax, fileHandle
+		call CloseFile
+		mov fileOpenFlag, 0
+	.ENDIF
 	call clearBuffer
     ret
 EditorLoop ENDP
@@ -380,6 +385,8 @@ DeleteChar ENDP
 		inc textLength
 		inc cursorPos
 		mov ax, cursorCoord.X
+		
+
 		.IF(dl == 0Ah || ax == maxXYCord.X)
 			mov cursorCoord.X, 0
 			mov ax, cursorCoord.Y
@@ -390,9 +397,20 @@ DeleteChar ENDP
 			inc dx
 			mov MaxXyCord.Y,dx
 		.ELSE
+			; Ovo je bruteforce da zeznem bag , need to be updated
+			mov bx, maxXYCord.X
+			dec bx
+			dec bx	; Make room for 2 char
+			;************+ Main stuff
 			mov ax, cursorCoord.X
 			inc ax
 			mov cursorCoord.X, ax
+			;******************
+			.IF(ax == bx)
+				mov al, ENTER_KEY
+				call insertChar	
+			.ENDIF
+			
 			
 		.ENDIF
 
@@ -528,6 +546,8 @@ DeleteChar ENDP
 		
 		mov ax,0							; Here we store length of the line
 		mov ecx, cursorPos					; Cursor position points to 0Ah ( linefeed char)
+		cmp ecx,0
+		je finish					; EDGE case when OAh is also beggining of the text
 		dec ecx
 		find_newLine:
 			cmp ecx,0

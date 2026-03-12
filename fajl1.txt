@@ -1,0 +1,8 @@
+Ovo je fajl1, test za ENTER:
+
+Obrisi samo slovo a u sledecem nizu:
+
+sdfeo jfspg dlsf [okfe[ok dlf ms;ld[pkf [k
+
+
+Hajde sad sacuvaj ovaj fajl klikni CTRL + Z

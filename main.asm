@@ -137,7 +137,9 @@ EXTRN settingsInfo:configurationParameters_t
 			; vukica 3/8
 			invoke foundInIndex
 			invoke updateIndexFile
-			invoke CreateFile, ADDR fileName, GENERIC_WRITE, 0, 0, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, 0
+			cmp foundFlag, 1
+			je menu
+			invoke CreateFile, ADDR fileName, GENERIC_WRITE, 0, 0, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, 0 
 			invoke CloseHandle, eax
 
 			invoke SetConsoleTitle, addr fileName			; Set Console Title
